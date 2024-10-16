@@ -18,9 +18,11 @@ const ctx = canvas.getContext("2d");
 
 const cursor = {active: false, x: 0, y: 0, newline: false};
 
-const recordPoint = new Event("drawing-changed");
+const drawingChanged = new Event("drawing-changed");
 
 let move_list: number[][][] = [];
+
+let undo_list: number[][][] = [];
 
 canvas.addEventListener("mousedown", (e) => {
     cursor.active = true;
@@ -34,10 +36,12 @@ canvas.addEventListener("mousemove", (e) => {
         if (cursor.newline) {
             move_list.push([]);
             cursor.newline = false;
+            undo_list = [];
         };
+        move_list[move_list.length - 1].push([cursor.x, cursor.y]);
         cursor.x = e.offsetX;
         cursor.y = e.offsetY;
-        canvas.dispatchEvent(recordPoint);
+        canvas.dispatchEvent(drawingChanged);
     }
 });
 
@@ -51,12 +55,38 @@ clear_button.innerHTML = "clear";
 app.append(clear_button);
 
 clear_button.addEventListener("click", () => {
+    cursor.active = false;
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
     move_list = []
 });
 
+const undo_button = document.createElement("button");
+undo_button.innerHTML = "undo";
+app.append(undo_button);
+
+undo_button.addEventListener("click", () => {
+    cursor.active = false;
+    const removed = move_list.pop();
+    if (typeof removed !== "undefined") {
+        undo_list.push(removed);
+    }
+    canvas.dispatchEvent(drawingChanged);
+});
+
+const redo_button = document.createElement("button");
+redo_button.innerHTML = "redo";
+app.append(redo_button);
+
+redo_button.addEventListener("click", () => {
+    cursor.active = false;
+    const removed = undo_list.pop();
+    if (typeof removed !== "undefined") {
+        move_list.push(removed);
+    }
+    canvas.dispatchEvent(drawingChanged);
+});
+
 canvas.addEventListener("drawing-changed", () => {
-    move_list[move_list.length - 1].push([cursor.x, cursor.y]);
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
     move_list.forEach( (line) => {
         line.forEach( (point) => {
