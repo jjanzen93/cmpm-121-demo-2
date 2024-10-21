@@ -20,9 +20,52 @@ const cursor = {active: false, x: 0, y: 0, newline: false};
 
 const drawingChanged = new Event("drawing-changed");
 
-let move_list: number[][][] = [];
+class Point {
 
-let undo_list: number[][][] = [];
+    x:number;
+    y:number;
+
+    constructor(x:number, y:number){
+        this.x = x;
+        this.y = y
+    }
+
+    display(ctx:CanvasRenderingContext2D) {
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
+    }
+
+}
+
+class Line {
+
+    first:Point;
+    point_list:Point[];
+
+    constructor(first_point:Point) {
+        this.first = first_point
+        this.point_list = [this.first];
+    }
+
+    drag(x:number, y:number) {
+        this.point_list.push(new Point(x, y));
+    }
+
+    display(ctx:CanvasRenderingContext2D) {
+        this.point_list.forEach((point) => {
+            if (this.point_list.indexOf(point) != 0) {
+                ctx.beginPath();
+                ctx.moveTo(this.point_list[this.point_list.indexOf(point) - 1].x, this.point_list[this.point_list.indexOf(point) - 1].y);
+                point.display(ctx);
+            }
+        });
+    }
+
+}
+
+let move_list: Line[] = [];
+
+let undo_list: Line[] = [];
 
 canvas.addEventListener("mousedown", (e) => {
     cursor.active = true;
@@ -34,11 +77,11 @@ canvas.addEventListener("mousedown", (e) => {
 canvas.addEventListener("mousemove", (e) => {
     if (cursor.active) {
         if (cursor.newline) {
-            move_list.push([]);
+            move_list.push(new Line(new Point(cursor.x, cursor.y)));
             cursor.newline = false;
-            undo_list = [];
-        };
-        move_list[move_list.length - 1].push([cursor.x, cursor.y]);
+        } else {
+            move_list[move_list.length - 1].drag(cursor.x, cursor.y);
+        }
         cursor.x = e.offsetX;
         cursor.y = e.offsetY;
         canvas.dispatchEvent(drawingChanged);
@@ -58,6 +101,7 @@ clear_button.addEventListener("click", () => {
     cursor.active = false;
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
     move_list = []
+    undo_list = []
 });
 
 const undo_button = document.createElement("button");
@@ -89,14 +133,9 @@ redo_button.addEventListener("click", () => {
 canvas.addEventListener("drawing-changed", () => {
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
     move_list.forEach( (line) => {
-        line.forEach( (point) => {
-            if (line.indexOf(point) != 0) {
-                ctx?.beginPath();
-                ctx?.moveTo(line[line.indexOf(point) - 1][0], line[line.indexOf(point) - 1][1]);
-                ctx?.lineTo(point[0], point[1]);
-                ctx?.stroke();
-            }
-        })
+        if (ctx !== null) {
+            line.display(ctx);
+        }
     })
     
 });
