@@ -15,8 +15,11 @@ canvas.width = 256;
 app.append(canvas);
 
 const ctx = canvas.getContext("2d");
+if (ctx != null) {
+    ctx.lineWidth = 1;
+}
 
-const cursor = {active: false, x: 0, y: 0, newline: false};
+const cursor = {active: false, x: 0, y: 0, newline: false, thickness: 1};
 
 const drawingChanged = new Event("drawing-changed");
 
@@ -41,10 +44,12 @@ class Line {
 
     first:Point;
     point_list:Point[];
+    thickness:number;
 
-    constructor(first_point:Point) {
-        this.first = first_point
+    constructor(first_point:Point, thickness:number) {
+        this.first = first_point;
         this.point_list = [this.first];
+        this.thickness = thickness;
     }
 
     drag(x:number, y:number) {
@@ -52,6 +57,7 @@ class Line {
     }
 
     display(ctx:CanvasRenderingContext2D) {
+        ctx.lineWidth = this.thickness;
         this.point_list.forEach((point) => {
             if (this.point_list.indexOf(point) != 0) {
                 ctx.beginPath();
@@ -77,7 +83,7 @@ canvas.addEventListener("mousedown", (e) => {
 canvas.addEventListener("mousemove", (e) => {
     if (cursor.active) {
         if (cursor.newline) {
-            move_list.push(new Line(new Point(cursor.x, cursor.y)));
+            move_list.push(new Line(new Point(cursor.x, cursor.y), cursor.thickness));
             cursor.newline = false;
         } else {
             move_list[move_list.length - 1].drag(cursor.x, cursor.y);
@@ -92,6 +98,8 @@ canvas.addEventListener("mouseup", () => {
     cursor.active = false;
     cursor.newline = true;
 });
+
+app.append(document.createElement("br"));
 
 const clear_button = document.createElement("button");
 clear_button.innerHTML = "clear";
@@ -128,6 +136,26 @@ redo_button.addEventListener("click", () => {
         move_list.push(removed);
     }
     canvas.dispatchEvent(drawingChanged);
+});
+
+app.append(document.createElement("br"));
+
+const thick_button = document.createElement("button");
+thick_button.innerHTML = "thick";
+app.append(thick_button);
+
+thick_button.addEventListener("click", () => {
+    cursor.active = false;
+    cursor.thickness = 5;
+});
+
+const thin_button = document.createElement("button");
+thin_button.innerHTML = "thin";
+app.append(thin_button);
+
+thin_button.addEventListener("click", () => {
+    cursor.active = false;
+    cursor.thickness = 1;
 });
 
 canvas.addEventListener("drawing-changed", () => {
