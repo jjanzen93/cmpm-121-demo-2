@@ -19,9 +19,33 @@ if (ctx != null) {
     ctx.lineWidth = 1;
 }
 
+let undoing = false;
+
 const cursor = {active: false, x: 0, y: 0, newline: false, thickness: 1};
 
 const drawingChanged = new Event("drawing-changed");
+
+const toolMoved = new Event("tool-moved");
+
+class CursorCommand {
+
+    x:number;
+    y:number;
+    thickness:number;
+
+    constructor(x:number, y:number, thickness:number) {
+        this.x = x;
+        this.y = y;
+        this.thickness = thickness+1;
+    }
+
+    draw(ctx:CanvasRenderingContext2D) {
+        ctx.fillRect(this.x - (this.thickness/2), this.y - (this.thickness/2), this.thickness, this.thickness);
+    }
+
+}
+
+let cursor_command: CursorCommand | null = null;
 
 class Point {
 
@@ -69,15 +93,50 @@ class Line {
 
 }
 
+
 let move_list: Line[] = [];
 
 let undo_list: Line[] = [];
+
+function redraw() {
+    if (ctx !== null) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        move_list.forEach( (line) => {
+            line.display(ctx);
+        })
+    
+        if (cursor_command != null) {
+            if (ctx !== null) {
+                cursor_command.draw(ctx);
+            }
+        }
+    }
+}
+
+canvas.addEventListener("mouseout", () => {
+    cursor_command = null;
+    canvas.dispatchEvent(toolMoved);
+    redraw();
+    document.body.style.cursor = "default";
+})
+
+canvas.addEventListener("mouseenter", (e) => {
+    cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness);
+    canvas.dispatchEvent(toolMoved);
+    document.body.style.cursor = "none";
+})
 
 canvas.addEventListener("mousedown", (e) => {
     cursor.active = true;
     cursor.newline = true;
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
+    cursor_command = null;
+    canvas.dispatchEvent(toolMoved);
+    if (undoing) {
+        undoing = false;
+        undo_list = [];
+    }
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -92,11 +151,15 @@ canvas.addEventListener("mousemove", (e) => {
         cursor.y = e.offsetY;
         canvas.dispatchEvent(drawingChanged);
     }
+    cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness);
+    canvas.dispatchEvent(toolMoved);
 });
 
-canvas.addEventListener("mouseup", () => {
+canvas.addEventListener("mouseup", (e) => {
     cursor.active = false;
     cursor.newline = true;
+    cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness);
+    canvas.dispatchEvent(toolMoved);
 });
 
 app.append(document.createElement("br"));
@@ -119,6 +182,7 @@ app.append(undo_button);
 undo_button.addEventListener("click", () => {
     cursor.active = false;
     const removed = move_list.pop();
+    undoing = true;
     if (typeof removed !== "undefined") {
         undo_list.push(removed);
     }
@@ -158,12 +222,10 @@ thin_button.addEventListener("click", () => {
     cursor.thickness = 1;
 });
 
+canvas.addEventListener("tool-moved", () => {
+    redraw();
+});
+
 canvas.addEventListener("drawing-changed", () => {
-    ctx?.clearRect(0, 0, canvas.width, canvas.height);
-    move_list.forEach( (line) => {
-        if (ctx !== null) {
-            line.display(ctx);
-        }
-    })
-    
+    redraw();
 });
