@@ -9,26 +9,18 @@ const title_txt = document.createElement("h1");
 title_txt.innerHTML = APP_NAME;
 app.append(title_txt);
 
-const canvas = document.createElement("canvas");
-canvas.height = 256;
-canvas.width = 256;
-app.append(canvas);
+// set up globals
 
-const ctx = canvas.getContext("2d");
-if (ctx != null) {
-    ctx.lineWidth = 1;
-}
-
-const stickers : string[] = ["🖍️", "😂", "😭"];
-
+let stickersJSON = JSON.stringify(["🖍️", "😂", "😭"]);
+const stickers = JSON.parse(stickersJSON);
 let undoing = false;
+const cursor = {active: false, x: 0, y: 0, thickness: 1, size: 16, tool: "line"};
 
-const cursor = {active: false, x: 0, y: 0, thickness: 1, tool: "line"};
-
+// custom events
 const drawingChanged = new Event("drawing-changed");
-
 const toolMoved = new Event("tool-moved");
 
+// define classes
 class CursorCommand {
 
     x:number;
@@ -48,8 +40,8 @@ class CursorCommand {
             ctx.fillRect(this.x - (this.thickness/2), this.y - (this.thickness/2), this.thickness, this.thickness);
         } else if (stickers.indexOf(this.tool) != -1) {
             console.log(this.tool);
-            ctx.font = `${this.thickness}px monospace`;
-            ctx.fillText(cursor.tool, this.x - (this.thickness/2), this.y + (this.thickness/2));
+            ctx.font = `${cursor.size}px monospace`;
+            ctx.fillText(cursor.tool, this.x - (cursor.size/2), this.y + (cursor.size/2));
         }
         
     }
@@ -66,6 +58,9 @@ class CanvasAction {
         console.log("undefined drag action");
     }
 }
+
+let move_list: CanvasAction[] = [];
+let undo_list: CanvasAction[] = [];
 
 class Point {
 
@@ -141,12 +136,18 @@ class Sticker extends CanvasAction{
 
 }
 
+// creating canvas
+const canvas = document.createElement("canvas");
+canvas.height = 256;
+canvas.width = 256;
+app.append(canvas);
 
-let move_list: CanvasAction[] = [];
+const ctx = canvas.getContext("2d");
+if (ctx != null) {
+    ctx.lineWidth = 1;
+}
 
-let undo_list: CanvasAction[] = [];
-
-
+// redraws the canvas from the current list of actions when a change occurs
 function redraw() {
     if (ctx != null) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -160,6 +161,15 @@ function redraw() {
     }
 }
 
+canvas.addEventListener("tool-moved", () => {
+    redraw();
+});
+
+canvas.addEventListener("drawing-changed", () => {
+    redraw();
+});
+
+// add mouse listeners
 canvas.addEventListener("mouseout", () => {
     cursor_command = null;
     canvas.dispatchEvent(toolMoved);
@@ -168,7 +178,11 @@ canvas.addEventListener("mouseout", () => {
 })
 
 canvas.addEventListener("mouseenter", (e) => {
-    cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool);
+    if (stickers.indexOf(cursor.tool) != -1) {
+        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.size, cursor.tool);
+    } else {
+        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool);
+    }
     canvas.dispatchEvent(toolMoved);
     document.body.style.cursor = "none";
 })
@@ -178,7 +192,7 @@ canvas.addEventListener("mousedown", (e) => {
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
     if (stickers.indexOf(cursor.tool) != -1) {
-        move_list.push(new Sticker(cursor.x, cursor.y, cursor.thickness, cursor.tool));
+        move_list.push(new Sticker(cursor.x, cursor.y, cursor.size, cursor.tool));
     } else if (cursor.tool == "line") {
         move_list.push(new Line(new Point(cursor.x, cursor.y), cursor.thickness));
     }
@@ -212,12 +226,12 @@ canvas.addEventListener("mouseup", (e) => {
     canvas.dispatchEvent(toolMoved);
 });
 
+// add buttons
 app.append(document.createElement("br"));
 
 const clear_button = document.createElement("button");
 clear_button.innerHTML = "clear";
 app.append(clear_button);
-
 clear_button.addEventListener("click", () => {
     cursor.active = false;
     ctx?.clearRect(0, 0, canvas.width, canvas.height);
@@ -228,7 +242,6 @@ clear_button.addEventListener("click", () => {
 const undo_button = document.createElement("button");
 undo_button.innerHTML = "undo";
 app.append(undo_button);
-
 undo_button.addEventListener("click", () => {
     cursor.active = false;
     const removed = move_list.pop();
@@ -242,7 +255,6 @@ undo_button.addEventListener("click", () => {
 const redo_button = document.createElement("button");
 redo_button.innerHTML = "redo";
 app.append(redo_button);
-
 redo_button.addEventListener("click", () => {
     cursor.active = false;
     const removed = undo_list.pop();
@@ -252,20 +264,12 @@ redo_button.addEventListener("click", () => {
     canvas.dispatchEvent(drawingChanged);
 });
 
-app.append(document.createElement("br"));
-
-stickers.forEach( (sticker) => {
-    const current_button = document.createElement("button");
-    current_button.innerHTML = sticker;
-    app.append(current_button);
-
-    current_button.addEventListener("click", () => {
-        cursor.active = false;
-        cursor.tool = sticker;
-    }); 
-});
 
 app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+const weight_display = document.createElement("div");
+weight_display.innerHTML = `Line Weight: ${cursor.thickness.toString()}`;
+app.append(weight_display);
 
 const thicker_button = document.createElement("button");
 thicker_button.innerHTML = "+5";
@@ -274,7 +278,7 @@ app.append(thicker_button);
 thicker_button.addEventListener("click", () => {
     cursor.active = false;
     cursor.thickness += 5;
-    size_display.innerHTML = `${cursor.thickness.toString()}px`;
+    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
 });
 
 const thick_button = document.createElement("button");
@@ -284,7 +288,7 @@ app.append(thick_button);
 thick_button.addEventListener("click", () => {
     cursor.active = false;
     cursor.thickness++;
-    size_display.innerHTML = `${cursor.thickness.toString()}px`;
+    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
 });
 
 const thin_button = document.createElement("button");
@@ -296,7 +300,7 @@ thin_button.addEventListener("click", () => {
     if (cursor.thickness > 1) {
         cursor.thickness--;
     }
-    size_display.innerHTML = `${cursor.thickness.toString()}px`;
+    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
 });
 
 const thinner_button = document.createElement("button");
@@ -310,17 +314,94 @@ thinner_button.addEventListener("click", () => {
     } else {
         cursor.thickness = 1;
     }
-    size_display.innerHTML = `${cursor.thickness.toString()}px`;
+    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
 });
 
+app.append(document.createElement("br"));
+
+// display current line thickness/font size
+app.append(document.createElement("br"));
 const size_display = document.createElement("div");
-size_display.innerHTML = `${cursor.thickness.toString()}px`;
+size_display.innerHTML = `Sticker Size: ${cursor.size.toString()}`;
 app.append(size_display);
 
-canvas.addEventListener("tool-moved", () => {
-    redraw();
+const bigger_button = document.createElement("button");
+bigger_button.innerHTML = "+5";
+app.append(bigger_button);
+
+bigger_button.addEventListener("click", () => {
+    cursor.active = false;
+    cursor.size += 5;
+    size_display.innerHTML = `${cursor.size.toString()}px`;
 });
 
-canvas.addEventListener("drawing-changed", () => {
-    redraw();
+const big_button = document.createElement("button");
+big_button.innerHTML = "+1";
+app.append(big_button);
+
+big_button.addEventListener("click", () => {
+    cursor.active = false;
+    cursor.size++;
+    size_display.innerHTML = `${cursor.size.toString()}px`;
+});
+
+const small_button = document.createElement("button");
+small_button.innerHTML = "-1";
+app.append(small_button);
+
+small_button.addEventListener("click", () => {
+    cursor.active = false;
+    if (cursor.size > 1) {
+        cursor.size--;
+    }
+    size_display.innerHTML = `${cursor.size.toString()}px`;
+});
+
+const smaller_button = document.createElement("button");
+smaller_button.innerHTML = "-5";
+app.append(smaller_button);
+
+smaller_button.addEventListener("click", () => {
+    cursor.active = false;
+    if (cursor.size > 5) {
+        cursor.size -= 5;
+    } else {
+        cursor.size = 1;
+    }
+    size_display.innerHTML = `${cursor.size.toString()}px`;
+});
+
+app.append(document.createElement("br"));
+app.append(document.createElement("br"));
+const custom_button = document.createElement("button");
+custom_button.innerHTML = "Add Custom Sticker";
+app.append(custom_button);
+
+custom_button.addEventListener("click", () => {
+    cursor.active = false;
+    let sticker_prompt: string|null = prompt("Custom sticker text", "🙂")
+    if (sticker_prompt == "line") {
+        sticker_prompt = "nice try :)";
+    }
+    if (sticker_prompt != null) {
+        createStickerButton(sticker_prompt);
+        stickers.push(sticker_prompt);
+        stickersJSON = JSON.stringify(stickers);
+
+    };
+});
+
+function createStickerButton(sticker:string) {
+    const current_button = document.createElement("button");
+    current_button.innerHTML = sticker;
+    app.append(current_button);
+
+    current_button.addEventListener("click", () => {
+        cursor.active = false;
+        cursor.tool = sticker;
+    }); 
+}
+
+stickers.forEach( (sticker:string) => {
+    createStickerButton(sticker);
 });
