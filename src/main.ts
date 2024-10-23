@@ -271,51 +271,34 @@ const weight_display = document.createElement("div");
 weight_display.innerHTML = `Line Weight: ${cursor.thickness.toString()}`;
 app.append(weight_display);
 
-const thicker_button = document.createElement("button");
-thicker_button.innerHTML = "+5";
-app.append(thicker_button);
-
-thicker_button.addEventListener("click", () => {
-    cursor.active = false;
-    cursor.thickness += 5;
-    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
-});
-
-const thick_button = document.createElement("button");
-thick_button.innerHTML = "+1";
-app.append(thick_button);
-
-thick_button.addEventListener("click", () => {
-    cursor.active = false;
-    cursor.thickness++;
-    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
-});
-
-const thin_button = document.createElement("button");
-thin_button.innerHTML = "-1";
-app.append(thin_button);
-
-thin_button.addEventListener("click", () => {
-    cursor.active = false;
-    if (cursor.thickness > 1) {
-        cursor.thickness--;
-    }
-    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
-});
-
-const thinner_button = document.createElement("button");
-thinner_button.innerHTML = "-5";
-app.append(thinner_button);
-
-thinner_button.addEventListener("click", () => {
-    cursor.active = false;
-    if (cursor.thickness > 5) {
-        cursor.thickness -= 5;
-    } else {
-        cursor.thickness = 1;
-    }
-    weight_display.innerHTML = `${cursor.thickness.toString()}px`;
-});
+function adjustProperty(adjustValue: number, displayElement: HTMLElement, cursorProperty: "thickness" | "size", minValue: number = 1) {
+    return () => {
+        cursor.active = false;
+        const newValue = cursor[cursorProperty] + adjustValue;
+        cursor[cursorProperty] = newValue >= minValue ? newValue : minValue;
+        displayElement.innerHTML = `${cursor[cursorProperty].toString()}px`;
+    };
+}
+  
+const thickerButton = document.createElement("button");
+thickerButton.innerHTML = "+5";
+app.append(thickerButton);
+thickerButton.addEventListener("click", adjustProperty(5, weight_display, "thickness"));
+  
+const thickButton = document.createElement("button");
+thickButton.innerHTML = "+1";
+app.append(thickButton);
+thickButton.addEventListener("click", adjustProperty(1, weight_display, "thickness"));
+  
+const thinButton = document.createElement("button");
+thinButton.innerHTML = "-1";
+app.append(thinButton);
+thinButton.addEventListener("click", adjustProperty(-1, weight_display, "thickness"));
+  
+const thinnerButton = document.createElement("button");
+thinnerButton.innerHTML = "-5";
+app.append(thinnerButton);
+thinnerButton.addEventListener("click", adjustProperty(-5, weight_display, "thickness"));
 
 app.append(document.createElement("br"));
 
@@ -325,51 +308,25 @@ const size_display = document.createElement("div");
 size_display.innerHTML = `Sticker Size: ${cursor.size.toString()}`;
 app.append(size_display);
 
-const bigger_button = document.createElement("button");
-bigger_button.innerHTML = "+5";
-app.append(bigger_button);
+const biggerButton = document.createElement("button");
+biggerButton.innerHTML = "+5";
+app.append(biggerButton);
+biggerButton.addEventListener("click", adjustProperty(5, size_display, "size"));
 
-bigger_button.addEventListener("click", () => {
-    cursor.active = false;
-    cursor.size += 5;
-    size_display.innerHTML = `${cursor.size.toString()}px`;
-});
+const bigButton = document.createElement("button");
+bigButton.innerHTML = "+1";
+app.append(bigButton);
+bigButton.addEventListener("click", adjustProperty(1, size_display, "size"));
 
-const big_button = document.createElement("button");
-big_button.innerHTML = "+1";
-app.append(big_button);
+const smallButton = document.createElement("button");
+smallButton.innerHTML = "-1";
+app.append(smallButton);
+smallButton.addEventListener("click", adjustProperty(-1, size_display, "size"));
 
-big_button.addEventListener("click", () => {
-    cursor.active = false;
-    cursor.size++;
-    size_display.innerHTML = `${cursor.size.toString()}px`;
-});
-
-const small_button = document.createElement("button");
-small_button.innerHTML = "-1";
-app.append(small_button);
-
-small_button.addEventListener("click", () => {
-    cursor.active = false;
-    if (cursor.size > 1) {
-        cursor.size--;
-    }
-    size_display.innerHTML = `${cursor.size.toString()}px`;
-});
-
-const smaller_button = document.createElement("button");
-smaller_button.innerHTML = "-5";
-app.append(smaller_button);
-
-smaller_button.addEventListener("click", () => {
-    cursor.active = false;
-    if (cursor.size > 5) {
-        cursor.size -= 5;
-    } else {
-        cursor.size = 1;
-    }
-    size_display.innerHTML = `${cursor.size.toString()}px`;
-});
+const smallerButton = document.createElement("button");
+smallerButton.innerHTML = "-5";
+app.append(smallerButton);
+smallerButton.addEventListener("click", adjustProperty(-5, size_display, "size"));
 
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
