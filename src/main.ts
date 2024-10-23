@@ -13,8 +13,10 @@ app.append(titleTxt);
 
 let stickers_json = JSON.stringify(["🖍️", "😂", "😭"]);
 const stickers = JSON.parse(stickers_json);
+const colors_json = JSON.stringify(["red", "orange", "yellow", "green", "blue", "indigo", "violet", "white", "gray", "black"]);
+const colors = JSON.parse(colors_json);
 let undoing = false;
-const cursor = {active: false, x: 0, y: 0, thickness: 3, size: 20, tool: "line"};
+const cursor = {active: false, x: 0, y: 0, thickness: 3, size: 20, tool: "line", color:"black"};
 
 // custom events
 const drawingChanged = new Event("drawing-changed");
@@ -27,21 +29,29 @@ class CursorCommand {
     y: number;
     thickness: number;
     tool: string;
+    color: string;
+    rotation: number;
 
-    constructor(x: number, y: number, thickness: number, tool: string) {
+    constructor(x: number, y: number, thickness: number, tool: string, color: string, rotation: number) {
         this.x = x;
         this.y = y;
         this.thickness = thickness + 1;
         this.tool = tool;
+        this.color = color;
+        this.rotation = rotation;
     }
 
     draw(ctx: CanvasRenderingContext2D) {
+        ctx.fillStyle = this.color;
         if (this.tool === "line") {
             ctx.fillRect(this.x - (this.thickness / 2), this.y - (this.thickness / 2), this.thickness, this.thickness);
         } else if (stickers.indexOf(this.tool) !== -1) {
-            console.log(this.tool);
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation * Math.PI / 180);
             ctx.font = `${cursor.size}px monospace`;
-            ctx.fillText(cursor.tool, this.x - (cursor.size / 2), this.y + (cursor.size / 2));
+            ctx.fillText(this.tool, -(cursor.size / 2), cursor.size / 2);
+            ctx.restore();
         }
     }
 }
@@ -81,12 +91,14 @@ class Line extends CanvasAction {
     first: Point;
     point_list: Point[];
     thickness: number;
+    color: string;
 
-    constructor(first_point: Point, thickness: number) {
+    constructor(first_point: Point, thickness: number, color: string) {
         super();
         this.first = first_point;
         this.point_list = [this.first];
         this.thickness = thickness;
+        this.color = color;
     }
 
     override drag(new_x: number, new_y: number) {
@@ -95,6 +107,7 @@ class Line extends CanvasAction {
 
     override display(ctx: CanvasRenderingContext2D) {
         ctx.lineWidth = this.thickness;
+        ctx.strokeStyle = this.color;
         this.point_list.forEach((point) => {
             if (this.point_list.indexOf(point) !== 0) {
                 ctx.beginPath();
@@ -111,18 +124,24 @@ class Sticker extends CanvasAction {
     y: number;
     size: number;
     image: string;
+    rotation: number;
 
-    constructor(x: number, y: number, size: number, image: string) {
+    constructor(x: number, y: number, size: number, image: string, rotation: number) {
         super();
         this.x = x;
         this.y = y;
         this.size = size;
         this.image = image;
+        this.rotation = rotation;
     }
 
     override display(ctx: CanvasRenderingContext2D) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation * Math.PI / 180);
         ctx.font = `${this.size}px monospace`;
-        ctx.fillText(this.image, this.x - (this.size / 2), this.y + (this.size / 2));
+        ctx.fillText(this.image, -(this.size / 2), this.size / 2);
+        ctx.restore();
     }
 
     override drag(new_x: number, new_y: number) {
@@ -174,9 +193,9 @@ canvas.addEventListener("mouseout", () => {
 
 canvas.addEventListener("mouseenter", (e) => {
     if (stickers.indexOf(cursor.tool) !== -1) {
-        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.size, cursor.tool);
+        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.size, cursor.tool, cursor.color, Number(rotation_slider.value));
     } else {
-        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool);
+        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool, cursor.color, Number(rotation_slider.value));
     }
     canvas.dispatchEvent(toolMoved);
     document.body.style.cursor = "none";
@@ -187,9 +206,9 @@ canvas.addEventListener("mousedown", (e) => {
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
     if (stickers.indexOf(cursor.tool) !== -1) {
-        move_list.push(new Sticker(cursor.x, cursor.y, cursor.size, cursor.tool));
+        move_list.push(new Sticker(cursor.x, cursor.y, cursor.size, cursor.tool, Number(rotation_slider.value)));
     } else if (cursor.tool === "line") {
-        move_list.push(new Line(new Point(cursor.x, cursor.y), cursor.thickness));
+        move_list.push(new Line(new Point(cursor.x, cursor.y), cursor.thickness, cursor.color));
     }
     cursor_command = null;
     canvas.dispatchEvent(toolMoved);
@@ -207,7 +226,7 @@ canvas.addEventListener("mousemove", (e) => {
         canvas.dispatchEvent(drawingChanged);
     }
     if (cursor_command) {
-        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool);
+        cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool, cursor.color, Number(rotation_slider.value));
         canvas.dispatchEvent(toolMoved);
     }
 });
@@ -215,7 +234,7 @@ canvas.addEventListener("mousemove", (e) => {
 canvas.addEventListener("mouseup", (e) => {
     cursor.active = false;
     cursor.tool = "line";
-    cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool);
+    cursor_command = new CursorCommand(e.offsetX, e.offsetY, cursor.thickness, cursor.tool, cursor.color, Number(rotation_slider.value));
     canvas.dispatchEvent(toolMoved);
 });
 
@@ -289,8 +308,7 @@ function adjustProperty(adjust_value: number, display_element: HTMLElement, curs
         cursor.active = false;
         const new_value = cursor[cursor_property] + adjust_value;
         cursor[cursor_property] = new_value >= min_value ? new_value : min_value;
-        // Update display with descriptive text
-        let prefixText = cursor_property === "thickness" ? "Line Weight" : "Sticker Size";
+        const prefixText = cursor_property === "thickness" ? "Line Weight" : "Sticker Size";
         display_element.innerHTML = `${prefixText}: ${cursor[cursor_property]}`;
     };
 }
@@ -305,6 +323,22 @@ createButton("-1", app, adjustProperty(-1, weight_display, "thickness"));
 createButton("-5", app, adjustProperty(-5, weight_display, "thickness"));
 
 app.append(document.createElement("br"));
+
+colors.forEach((color:string) => {
+    const color_button = createButton(color, app, () => {
+        cursor.active = false;
+        cursor.tool = "line";
+        cursor.color = color
+    });
+    color_button.style.backgroundColor = color;
+    if (color === "black" || color === "gray") {
+        color_button.style.color = "white";
+    } else {
+        color_button.style.color = "black";
+    }
+});
+
+app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
 const size_display = document.createElement("div");
@@ -317,6 +351,26 @@ createButton("-1", app, adjustProperty(-1,size_display, "size"));
 createButton("-5", app, adjustProperty(-5,size_display, "size"));
 
 app.append(document.createElement("br"));
+
+const rotation_slider = document.createElement("input");
+rotation_slider.type = "range";
+rotation_slider.min = "0";
+rotation_slider.max = "360";
+rotation_slider.value = "0";
+
+const rotation_display = document.createElement("div");
+rotation_display.innerHTML = `Sticker Rotation: ${rotation_slider.value}°`;
+app.append(rotation_display);
+
+rotation_slider.addEventListener("input", () => {
+    cursor.active = false;
+    rotation_display.innerHTML = `Sticker Rotation: ${rotation_slider.value}°`;
+});
+
+app.append(rotation_slider);
+
+
+app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
 createButton("Add Custom Sticker", app, () => {
@@ -326,23 +380,18 @@ createButton("Add Custom Sticker", app, () => {
         sticker_prompt = "nice try :)";
     }
     if (sticker_prompt != null) {
-        createStickerButton(sticker_prompt);
+        createButton(sticker_prompt, app, () => {
+            cursor.active = false;
+            cursor.tool = sticker_prompt;
+        });
         stickers.push(sticker_prompt);
         stickers_json = JSON.stringify(stickers);
     };
 });
 
-function createStickerButton(sticker: string) {
-    const current_button = document.createElement("button");
-    current_button.innerHTML = sticker;
-    app.append(current_button);
-
-    current_button.addEventListener("click", () => {
+stickers.forEach((sticker: string) => {
+    createButton(sticker, app, () => {
         cursor.active = false;
         cursor.tool = sticker;
     });
-}
-
-stickers.forEach((sticker: string) => {
-    createStickerButton(sticker);
 });
