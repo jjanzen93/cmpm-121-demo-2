@@ -14,7 +14,7 @@ app.append(titleTxt);
 let stickers_json = JSON.stringify(["🖍️", "😂", "😭"]);
 const stickers = JSON.parse(stickers_json);
 let undoing = false;
-const cursor = {active: false, x: 0, y: 0, thickness: 1, size: 16, tool: "line"};
+const cursor = {active: false, x: 0, y: 0, thickness: 3, size: 20, tool: "line"};
 
 // custom events
 const drawingChanged = new Event("drawing-changed");
@@ -134,7 +134,7 @@ class Sticker extends CanvasAction {
 // creating canvas
 const canvas = document.createElement("canvas");
 canvas.height = 256;
-canvas.width = 256;
+canvas.width = 480;
 app.append(canvas);
 
 const ctx = canvas.getContext("2d");
@@ -282,18 +282,22 @@ createButton("export", app, exportCanvas);
 app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
-const weight_display = document.createElement("div");
-weight_display.innerHTML = `Line Weight: ${cursor.thickness.toString()}`;
-app.append(weight_display);
+
 
 function adjustProperty(adjust_value: number, display_element: HTMLElement, cursor_property: "thickness" | "size", min_value: number = 1) {
     return () => {
         cursor.active = false;
         const new_value = cursor[cursor_property] + adjust_value;
         cursor[cursor_property] = new_value >= min_value ? new_value : min_value;
-        display_element.innerHTML = `${cursor[cursor_property].toString()}px`;
+        // Update display with descriptive text
+        let prefixText = cursor_property === "thickness" ? "Line Weight" : "Sticker Size";
+        display_element.innerHTML = `${prefixText}: ${cursor[cursor_property]}`;
     };
 }
+
+const weight_display = document.createElement("div");
+weight_display.innerHTML = `Line Weight: ${cursor.thickness}`;
+app.append(weight_display);
 
 createButton("+5", app, adjustProperty(5, weight_display, "thickness"));
 createButton("+1", app, adjustProperty(1, weight_display, "thickness"));
@@ -304,7 +308,7 @@ app.append(document.createElement("br"));
 app.append(document.createElement("br"));
 
 const size_display = document.createElement("div");
-size_display.innerHTML = `Sticker Size: ${cursor.size.toString()}`;
+size_display.innerHTML = `Sticker Size: ${cursor.size}`;
 app.append(size_display);
 
 createButton("+5", app, adjustProperty(5, size_display, "size"));
