@@ -185,7 +185,7 @@ canvas.addEventListener("drawing-changed", () => {
 
 // add mouse listeners
 canvas.addEventListener("mouseout", () => {
-    cursor_command = null;
+    cursor_command = new CursorCommand(-10, -10, cursor.size, cursor.tool, cursor.color, Number(rotation_slider.value));
     canvas.dispatchEvent(toolMoved);
     redraw();
     document.body.style.cursor = "default";
